@@ -1,0 +1,1219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Android Code Studio — Prototype</title>
+<style>
+:root{
+  --surface:#121212; --surface-1:#1a1a1a; --surface-2:#1e1e1e; --surface-hi:#262626;
+  --on-surface:#ECECEC; --on-surface-var:#A8A8A8; --outline:#3A3A3A;
+  --primary:#7C4DFF; --on-primary:#ffffff; --secondary:#03DAC5; --error:#CF6679;
+  --kw:#C792EA; --str:#C3E88D; --num:#F78C6C; --cmt:#63737e; --fn:#82AAFF; --cls:#FFCB6B; --xmltag:#F07178;
+  --radius-card:12px; --radius-lg:24px; --radius-xl:28px;
+  --mono:'JetBrains Mono','Fira Code',ui-monospace,Consolas,monospace;
+  --sans:'Roboto',system-ui,-apple-system,Segoe UI,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:#000;color:var(--on-surface);font-family:var(--sans);
+  display:flex;align-items:center;justify-content:center;overflow:hidden}
+
+/* ===== device frame ===== */
+#app{
+  width:420px;height:860px;max-height:96vh;background:var(--surface);
+  border-radius:36px;overflow:hidden;position:relative;
+  box-shadow:0 40px 100px rgba(0,0,0,.6), 0 0 0 10px #0a0a0a, 0 0 0 12px #2a2a2a;
+  display:flex;flex-direction:column;
+}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--surface);
+  transform:translateX(24px);opacity:0;pointer-events:none;transition:transform .28s cubic-bezier(.2,.8,.2,1),opacity .22s}
+.screen.active{transform:translateX(0);opacity:1;pointer-events:auto}
+.hidden{display:none !important}
+
+/* ===== shared bits ===== */
+.topbar{display:flex;align-items:center;gap:8px;padding:14px 12px;flex-shrink:0}
+.icon-btn{width:38px;height:38px;border-radius:50%;border:none;background:transparent;color:var(--on-surface);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .15s}
+.icon-btn:hover{background:rgba(255,255,255,.08)}
+.icon-btn svg{width:20px;height:20px}
+.title-lg{font-size:20px;font-weight:600;flex:1}
+.btn{border:none;border-radius:20px;padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer;
+  font-family:var(--sans);transition:filter .15s,opacity .15s}
+.btn:active{filter:brightness(.85)}
+.btn.filled{background:var(--primary);color:#fff}
+.btn.filled:disabled{opacity:.35;cursor:not-allowed}
+.btn.outlined{background:transparent;color:var(--on-surface);border:1px solid var(--outline)}
+.btn.error{background:transparent;color:var(--error);border:1px solid var(--error)}
+.btn.tonal{background:var(--surface-hi);color:var(--on-surface)}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;color:var(--on-surface-var);margin-bottom:6px}
+.field input,.field select{width:100%;background:var(--surface-2);border:1px solid var(--outline);
+  color:var(--on-surface);border-radius:10px;padding:11px 12px;font-size:14px;font-family:var(--sans);outline:none}
+.field input:focus,.field select:focus{border-color:var(--primary)}
+.field .help{font-size:11px;color:var(--on-surface-var);margin-top:4px}
+.field .help.err{color:var(--error)}
+.seg{display:flex;background:var(--surface-2);border-radius:20px;padding:3px;border:1px solid var(--outline)}
+.seg button{flex:1;border:none;background:transparent;color:var(--on-surface-var);padding:8px;border-radius:18px;
+  font-size:13px;font-weight:600;cursor:pointer;font-family:var(--sans)}
+.seg button.on{background:var(--primary);color:#fff}
+.switch-row{display:flex;align-items:center;gap:12px;padding:10px 0}
+.switch-row .txt{flex:1}
+.switch-row .txt b{display:block;font-size:14px}
+.switch-row .txt span{font-size:12px;color:var(--on-surface-var)}
+.sw{width:40px;height:22px;border-radius:11px;background:var(--outline);position:relative;cursor:pointer;flex-shrink:0;transition:background .15s}
+.sw.on{background:var(--primary)}
+.sw i{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s}
+.sw.on i{left:20px}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-thumb{background:var(--outline);border-radius:3px}
+
+/* ===================== GALLERY ===================== */
+#gallery-list{flex:1;overflow-y:auto;padding:8px 12px 12px;display:flex;flex-wrap:wrap;
+  justify-content:space-evenly;gap:8px;align-content:flex-start}
+.tpl-card{width:112px;background:var(--surface-2);border-radius:var(--radius-card);padding:8px;
+  display:flex;flex-direction:column;align-items:center;cursor:pointer;border:1px solid transparent;
+  transition:border-color .15s,transform .1s}
+.tpl-card:hover{border-color:var(--primary)}
+.tpl-card:active{transform:scale(.96)}
+.tpl-card img{width:100px;height:100px;object-fit:contain;border-radius:8px;background:#000}
+.tpl-card .noimg{width:100px;height:100px;border-radius:8px;background:var(--surface-hi);
+  display:flex;align-items:center;justify-content:center;font-size:34px;color:var(--primary)}
+.tpl-card .name{font-size:12px;text-align:center;margin-top:8px;line-height:1.3;height:32px;
+  display:flex;align-items:center;justify-content:center}
+#gallery-exit{align-self:flex-start;margin:0 12px 12px}
+
+/* ===================== CONFIGURE ===================== */
+#configure-body{flex:1;overflow-y:auto;padding:0 16px 16px}
+#cfg-progress{height:3px;background:var(--surface-hi);position:relative;overflow:hidden;flex-shrink:0}
+#cfg-progress i{position:absolute;height:100%;width:30%;background:var(--primary);left:-30%;animation:none}
+#cfg-progress.on i{animation:load 1s infinite linear}
+@keyframes load{from{left:-30%}to{left:100%}}
+.cfg-footer{display:flex;justify-content:space-between;padding:12px 16px 18px;gap:8px;flex-shrink:0;
+  border-top:1px solid var(--outline)}
+.conflict{font-size:12px;color:var(--error);margin-top:6px;display:none}
+#lastloc-chip{display:inline-block;margin-top:6px;font-size:11px;background:var(--surface-hi);
+  color:var(--on-surface-var);padding:4px 10px;border-radius:12px;cursor:pointer}
+
+/* ===================== EDITOR ===================== */
+#editor-toolbar{background:var(--surface-1);border-bottom:1px solid var(--outline)}
+#editor-toolbar .title-lg{font-size:15px;font-weight:600}
+#editor-toolbar .sub{font-size:10px;color:var(--on-surface-var);display:block;margin-top:1px}
+.tabs-strip{display:flex;background:var(--surface-1);overflow-x:auto;border-bottom:1px solid var(--outline);flex-shrink:0}
+.filetab{display:flex;align-items:center;gap:6px;padding:9px 12px;font-size:12px;color:var(--on-surface-var);
+  border-bottom:2px solid transparent;white-space:nowrap;cursor:pointer;flex-shrink:0}
+.filetab.on{color:var(--on-surface);border-color:var(--primary);background:var(--surface-2)}
+.filetab .dot{width:6px;height:6px;border-radius:50%;background:var(--secondary);flex-shrink:0}
+.filetab .x{opacity:.5;font-size:14px;margin-left:2px}
+#editor-canvas-wrap{flex:1;display:flex;overflow:hidden;position:relative}
+#code-canvas{flex:1;overflow:auto;padding:12px 0;background:var(--surface)}
+.codeline{display:flex;font-family:var(--mono);font-size:12.5px;line-height:20px;white-space:pre}
+.codeline .ln{width:34px;text-align:right;color:#555;padding-right:12px;user-select:none;flex-shrink:0}
+.codeline .code{flex:1;padding-right:16px}
+.tok-kw{color:var(--kw)} .tok-str{color:var(--str)} .tok-num{color:var(--num)}
+.tok-cmt{color:var(--cmt);font-style:italic} .tok-fn{color:var(--fn)} .tok-cls{color:var(--cls)} .tok-ann{color:#FFCB6B}
+
+/* status bar */
+#statusbar{display:flex;align-items:center;gap:14px;padding:4px 12px;font-size:10px;
+  color:var(--on-surface-var);background:var(--surface-1);border-top:1px solid var(--outline);flex-shrink:0}
+
+/* bottom sheet */
+#bottom-sheet{background:var(--surface-2);border-radius:20px 20px 0 0;flex-shrink:0;
+  transition:height .25s cubic-bezier(.2,.8,.2,1);overflow:hidden;box-shadow:0 -4px 20px rgba(0,0,0,.3)}
+#bottom-sheet.collapsed{height:52px}
+#bottom-sheet.expanded{height:280px}
+#sheet-header{height:52px;display:flex;align-items:center;justify-content:center;flex-direction:column;
+  cursor:pointer;flex-shrink:0}
+#sheet-header .st{font-size:12px}
+#sheet-header .hint{font-size:9px;color:var(--on-surface-var);margin-top:-2px}
+#sheet-tabs{display:flex;gap:4px;padding:0 12px;border-bottom:1px solid var(--outline);flex-shrink:0}
+#sheet-tabs button{background:none;border:none;color:var(--on-surface-var);padding:8px 10px;font-size:11px;
+  cursor:pointer;border-bottom:2px solid transparent;font-family:var(--sans)}
+#sheet-tabs button.on{color:var(--on-surface);border-color:var(--primary)}
+#sheet-content{flex:1;overflow-y:auto;padding:10px 14px;font-family:var(--mono);font-size:11px;
+  color:var(--on-surface-var);line-height:1.6}
+#sheet-content .ok{color:var(--secondary)}
+#sheet-content .err{color:var(--error)}
+
+/* left drawer */
+#scrim{position:absolute;inset:0;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .2s;z-index:40}
+#scrim.on{opacity:1;pointer-events:auto}
+#drawer{position:absolute;top:0;bottom:0;left:0;width:82%;max-width:320px;background:var(--surface-1);
+  transform:translateX(-100%);transition:transform .25s cubic-bezier(.2,.8,.2,1);z-index:41;
+  display:flex;flex-direction:column;box-shadow:8px 0 24px rgba(0,0,0,.4)}
+#drawer.on{transform:translateX(0)}
+#drawer-content{flex:1;overflow-y:auto;padding:12px 16px}
+#drawer-content .dtitle{font-size:16px;font-weight:600;margin-bottom:2px}
+#drawer-content .dsub{font-size:10px;color:var(--on-surface-var);margin-bottom:14px}
+.tree-row{display:flex;align-items:center;gap:6px;padding:7px 0;font-size:13px;cursor:pointer}
+.tree-row .chev{width:16px;color:var(--on-surface-var);font-size:10px;transition:transform .15s}
+.tree-row.expanded .chev{transform:rotate(90deg)}
+.tree-row .ic{width:16px;text-align:center;font-size:13px}
+.tree-row.dir{color:var(--on-surface)}
+.tree-row.file{color:var(--on-surface-var)}
+.tree-row.file.active{color:var(--on-surface);background:var(--surface-2);border-radius:6px}
+#drawer-nav{display:flex;border-top:1px solid var(--outline);flex-shrink:0;background:var(--surface-1)}
+#drawer-nav button{flex:1;background:none;border:none;color:var(--on-surface-var);padding:10px 2px;
+  display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;font-family:var(--sans)}
+#drawer-nav button.on{color:var(--primary)}
+#drawer-nav button span{font-size:8px}
+#drawer-nav button i{font-size:16px}
+
+/* ===================== AI AGENT PANEL ===================== */
+#ai-panel{position:absolute;inset:0;background:var(--surface);transform:translateX(100%);
+  transition:transform .28s cubic-bezier(.2,.8,.2,1);z-index:50;display:flex;flex-direction:column}
+#ai-panel.on{transform:translateX(0)}
+#ai-appbar{margin:6px;padding:6px 10px;border-radius:24px;background:var(--surface-hi);
+  display:flex;align-items:center;gap:8px;flex-shrink:0}
+#ai-tabs{flex:1;display:flex;background:transparent}
+#ai-tabs button{flex:1;background:none;border:none;color:var(--on-surface-var);padding:8px;font-size:13px;
+  font-weight:600;border-bottom:2px solid transparent;cursor:pointer;font-family:var(--sans)}
+#ai-tabs button.on{color:var(--primary);border-color:var(--primary)}
+#ai-pages{flex:1;overflow:hidden;position:relative}
+.ai-page{position:absolute;inset:0;display:none;flex-direction:column;overflow:hidden}
+.ai-page.on{display:flex}
+
+/* chat page */
+#chat-form{padding:16px;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+#chat-form textarea{width:100%;background:var(--surface-2);border:1px solid var(--outline);color:var(--on-surface);
+  border-radius:12px;padding:12px;font-size:13px;font-family:var(--sans);resize:none;min-height:64px;outline:none}
+#chat-form textarea:focus{border-color:var(--primary)}
+.provider-chip{font-size:11px;color:var(--on-surface-var);margin:6px 0 10px;display:inline-block;
+  background:var(--surface-2);padding:4px 10px;border-radius:12px;cursor:pointer}
+.chat-actions{display:flex;justify-content:flex-end;gap:8px}
+#chat-scroll{flex:1;overflow-y:auto;padding:0 16px 16px}
+.status-card{background:var(--surface-2);border-radius:14px;padding:14px;margin-top:6px}
+.status-card .row{display:flex;align-items:center;gap:10px}
+.status-card .lbl{flex:1;font-size:14px}
+.spinner{width:18px;height:18px;border:2px solid var(--outline);border-top-color:var(--primary);
+  border-radius:50%;animation:spin 0.8s linear infinite;display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+#status-text{font-size:12px;color:var(--on-surface-var);margin-top:8px}
+#mod-list{margin-top:10px;display:none}
+.mod-row{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12px;border-top:1px solid var(--outline)}
+.mod-row .badge{font-size:9px;padding:2px 6px;border-radius:8px;font-weight:700}
+.badge.created{background:rgba(3,218,197,.15);color:var(--secondary)}
+.badge.modified{background:rgba(124,77,255,.15);color:var(--primary)}
+#summary-card{background:var(--surface-2);border-radius:14px;padding:14px;margin-top:12px;display:none}
+#summary-card .t{font-size:14px;margin-bottom:6px}
+#summary-card .s{font-size:12px;color:var(--on-surface-var)}
+#undo-fab{position:absolute;bottom:16px;right:16px;background:var(--primary);color:#fff;border:none;
+  border-radius:20px;padding:12px 18px;font-size:13px;font-weight:700;display:none;align-items:center;gap:8px;
+  cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.4);z-index:5}
+
+/* history page */
+#history-list{flex:1;overflow-y:auto;padding:8px 16px}
+.hist-row{padding:12px;border-radius:12px;background:var(--surface-2);margin-bottom:8px;cursor:pointer}
+.hist-row .t{font-size:13px;margin-bottom:4px}
+.hist-row .m{display:flex;justify-content:space-between;font-size:10px;color:var(--on-surface-var)}
+.empty-block{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  color:var(--on-surface-var);gap:8px;padding:20px;text-align:center}
+.empty-block .em{font-size:40px;opacity:.4}
+
+/* settings page */
+#settings-page{padding:16px;overflow-y:auto}
+.provider-key-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;
+  border-bottom:1px solid var(--outline);font-size:13px}
+.provider-key-row .st{font-size:10px;color:var(--on-surface-var)}
+.provider-key-row .configured{color:var(--secondary)}
+
+/* rail */
+#ai-rail-scrim{position:absolute;inset:0;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .2s;z-index:59}
+#ai-rail-scrim.on{opacity:1;pointer-events:auto}
+#ai-rail{position:absolute;top:0;bottom:0;left:0;width:84px;background:var(--surface-1);
+  transform:translateX(-100%);transition:transform .2s;z-index:60;display:flex;flex-direction:column;
+  align-items:center;padding-top:20px;gap:6px;box-shadow:8px 0 24px rgba(0,0,0,.4)}
+#ai-rail.on{transform:translateX(0)}
+.rail-item{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 14px;border-radius:14px;
+  cursor:pointer;color:var(--on-surface-var);width:64px}
+.rail-item.on{background:rgba(124,77,255,.18);color:var(--primary)}
+.rail-item span{font-size:10px}
+
+/* toast */
+#toast{position:absolute;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--surface-hi);color:var(--on-surface);padding:10px 18px;border-radius:24px;font-size:12px;
+  opacity:0;transition:opacity .2s,transform .2s;z-index:100;box-shadow:0 6px 18px rgba(0,0,0,.4)}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ============================================================ SCREEN 1: TEMPLATE GALLERY ============================================================ -->
+  <div class="screen active" id="screen-gallery">
+    <div class="topbar"><div class="title-lg" style="text-align:center">New Project</div></div>
+    <div id="gallery-list"></div>
+    <button class="btn error" id="gallery-exit">Exit</button>
+  </div>
+
+  <!-- ============================================================ SCREEN 2: CONFIGURE PROJECT ============================================================ -->
+  <div class="screen" id="screen-configure">
+    <div id="cfg-progress"><i></i></div>
+    <div class="topbar">
+      <button class="icon-btn" id="cfg-back">←</button>
+      <div class="title-lg" id="cfg-title">Empty Activity</div>
+    </div>
+    <div id="configure-body">
+      <div class="field">
+        <label>Project Name</label>
+        <input id="f-name" placeholder="MyApplication" value="MyApplication" />
+      </div>
+      <div class="field">
+        <label>Package Name</label>
+        <input id="f-pkg" value="com.example.myapplication" />
+        <div class="help" id="pkg-help">✓ Valid package name</div>
+      </div>
+      <div class="field">
+        <label>Save Location</label>
+        <input id="f-loc" readonly value="/storage/emulated/0/AndroidCodeStudioProjects" />
+        <span id="lastloc-chip">Use last location</span>
+      </div>
+      <div class="field">
+        <label>Language</label>
+        <div class="seg" id="f-lang"><button class="on" data-v="Kotlin">Kotlin</button><button data-v="Java">Java</button></div>
+        <div class="help" id="lang-help" style="display:none">Jetpack Compose is Kotlin-only in this build.</div>
+      </div>
+      <div class="field">
+        <label>Minimum SDK</label>
+        <select id="f-sdk">
+          <option value="21">API 21: Android 5.0 (Lollipop)</option>
+          <option value="23">API 23: Android 6.0 (Marshmallow)</option>
+          <option value="26">API 26: Android 8.0 (Oreo)</option>
+          <option value="29" selected>API 29: Android 10</option>
+          <option value="31">API 31: Android 12</option>
+          <option value="34">API 34: Android 14</option>
+        </select>
+      </div>
+      <div class="switch-row">
+        <div class="txt"><b>Build Script Language</b><span id="kts-label">Kotlin DSL (.gradle.kts)</span></div>
+        <div class="sw on" id="f-kts"><i></i></div>
+      </div>
+
+      <div id="native-fields" style="display:none">
+        <div class="field">
+          <label>Native Language</label>
+          <div class="seg" id="f-natlang"><button class="on" data-v="C++">C++</button><button data-v="C">C</button></div>
+        </div>
+        <div class="field">
+          <label>Build System</label>
+          <div class="seg" id="f-buildsys"><button class="on" data-v="cmake">CMake</button><button data-v="ndkbuild">ndk-build</button></div>
+        </div>
+        <div class="field">
+          <label>NDK Version</label>
+          <select id="f-ndk">
+            <option>Auto (highest installed)</option>
+            <option>26.1.10909125</option>
+            <option>25.2.9519653</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="cfg-footer">
+      <button class="btn outlined" id="cfg-prev">Previous</button>
+      <button class="btn filled" id="cfg-finish">Create Project</button>
+    </div>
+  </div>
+
+  <!-- ============================================================ SCREEN 3: CODE EDITOR ============================================================ -->
+  <div class="screen" id="screen-editor" style="position:relative">
+    <div id="editor-toolbar" class="topbar">
+      <button class="icon-btn" id="open-drawer">☰</button>
+      <div style="flex:1">
+        <div class="title-lg" id="proj-name">MyApplication</div>
+        <span class="sub" id="proj-sub">app · MainActivity</span>
+      </div>
+      <button class="icon-btn" title="Search">🔍</button>
+      <button class="icon-btn" title="Run" id="run-btn" style="color:var(--secondary)">▶</button>
+      <button class="icon-btn" id="open-ai" title="AI Agent">✨</button>
+    </div>
+    <div class="tabs-strip" id="tabs-strip"></div>
+    <div id="editor-canvas-wrap">
+      <div id="code-canvas"></div>
+    </div>
+    <div id="statusbar">
+      <span id="cursor-pos">Ln 1, Col 1</span><span>UTF-8</span><span id="lang-mode">Kotlin</span>
+      <span style="flex:1"></span><span id="index-status">Indexed</span>
+    </div>
+    <div id="bottom-sheet" class="collapsed">
+      <div id="sheet-header">
+        <div class="st" id="build-status-text">BUILD SUCCESSFUL in 4s</div>
+        <div class="hint">Swipe up</div>
+      </div>
+      <div id="sheet-tabs">
+        <button class="on" data-t="build">Build Output</button>
+        <button data-t="logcat">Logcat</button>
+        <button data-t="terminal">Terminal</button>
+      </div>
+      <div id="sheet-content"></div>
+    </div>
+
+    <!-- left drawer -->
+    <div id="scrim"></div>
+    <div id="drawer">
+      <div id="drawer-content">
+        <div class="dtitle">File Tree</div>
+        <div class="dsub" id="drawer-sub">/AndroidCodeStudioProjects/MyApplication</div>
+        <div id="tree-root"></div>
+      </div>
+      <div id="drawer-nav">
+        <button class="on" data-d="tree"><i>🗂</i><span>Files</span></button>
+        <button data-d="variants"><i>🧩</i><span>Variants</span></button>
+        <button data-d="ai"><i>✨</i><span>AI Agent</span></button>
+        <button data-d="assets"><i>🎨</i><span>Assets</span></button>
+        <button data-d="modules"><i>📦</i><span>Modules</span></button>
+        <button data-d="prefs"><i>⚙️</i><span>Prefs</span></button>
+        <button data-d="close"><i>✕</i><span>Close</span></button>
+      </div>
+    </div>
+
+    <!-- ===================== AI AGENT PANEL ===================== -->
+    <div id="ai-panel">
+      <div id="ai-appbar">
+        <button class="icon-btn" id="ai-rail-toggle" style="width:32px;height:32px">☰</button>
+        <div id="ai-tabs"><button class="on" data-p="chat">Chat</button><button data-p="history">History</button></div>
+        <button class="icon-btn" id="ai-close">✕</button>
+      </div>
+      <div id="ai-pages">
+        <!-- CHAT -->
+        <div class="ai-page on" id="page-chat">
+          <div id="chat-form">
+            <textarea id="ai-prompt" placeholder="What would you like me to do?"></textarea>
+            <div class="provider-chip" id="provider-chip">✨ OpenAI · gpt-5.1</div>
+            <div class="chat-actions">
+              <button class="btn outlined" id="ai-clear">Clear</button>
+              <button class="btn filled" id="ai-send">Send</button>
+            </div>
+          </div>
+          <div id="chat-scroll">
+            <div class="status-card">
+              <div class="row"><div class="lbl">Status</div><div class="spinner" id="ai-spinner"></div></div>
+              <div id="status-text">Ready to assist you</div>
+              <div id="mod-list"></div>
+            </div>
+            <div id="summary-card">
+              <div class="t">Modification Summary</div>
+              <div class="s" id="summary-text"></div>
+            </div>
+          </div>
+          <button id="undo-fab">↺ Undo</button>
+        </div>
+        <!-- HISTORY -->
+        <div class="ai-page" id="page-history">
+          <div id="history-list"></div>
+        </div>
+        <!-- SETTINGS -->
+        <div class="ai-page" id="page-settings">
+          <div id="settings-page">
+            <div class="field">
+              <label>AI Provider</label>
+              <select id="set-provider">
+                <option>OpenAI</option><option>Anthropic</option><option>Gemini</option>
+                <option>Grok</option><option>DeepSeek</option><option>Ollama</option><option>Local LLM</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Model / Agent</label>
+              <select id="set-model"><option>gpt-5.1</option></select>
+            </div>
+            <div class="switch-row"><div class="txt"><b>Auto-Switch Provider</b><span>Switch automatically on errors</span></div><div class="sw on"><i></i></div></div>
+            <div class="switch-row"><div class="txt"><b>Code Completion</b><span>AI-powered suggestions</span></div><div class="sw on"><i></i></div></div>
+            <div style="margin-top:10px;font-size:12px;color:var(--on-surface-var)">API Keys</div>
+            <div class="provider-key-row"><span>OpenAI API Key</span><span class="st configured">Configured</span></div>
+            <div class="provider-key-row"><span>Anthropic API Key</span><span class="st configured">Configured</span></div>
+            <div class="provider-key-row"><span>Gemini API Key</span><span class="st">Not set</span></div>
+            <div class="provider-key-row"><span>Grok API Key</span><span class="st">Not set</span></div>
+            <div class="provider-key-row"><span>DeepSeek API Key</span><span class="st">Not set</span></div>
+            <div class="provider-key-row"><span>Ollama Settings</span><span class="st">Not set</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="ai-rail-scrim"></div>
+    <div id="ai-rail">
+      <div class="rail-item on" data-r="chat"><i>💬</i><span>Chat</span></div>
+      <div class="rail-item" data-r="settings"><i>⚙️</i><span>Settings</span></div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+</div>
+
+<script>
+/* ============================================================
+   DATA: the 7 real templates from the uploaded codebase
+   ============================================================ */
+const TEMPLATES = [
+  {id:'no_activity', name:'No Activity', img:'{{IMG_NO_ACTIVITY}}', kind:'other'},
+  {id:'empty_activity', name:'Empty Activity', img:'{{IMG_EMPTY_ACTIVITY}}', kind:'activity'},
+  {id:'basic_activity', name:'Basic Activity', img:'{{IMG_BASIC_ACTIVITY}}', kind:'activity'},
+  {id:'compose_empty_activity', name:'Empty Activity (Compose)', img:'{{IMG_COMPOSE}}', kind:'compose'},
+  {id:'bottom_navigation_activity', name:'Bottom Navigation Activity', img:'{{IMG_BOTTOMNAV}}', kind:'activity'},
+  {id:'blank_activity_drawer', name:'Navigation Drawer Activity', img:'{{IMG_DRAWER}}', kind:'activity'},
+  {id:'cpp_activity', name:'Native C++', img:'{{IMG_CPP}}', kind:'native'},
+];
+
+/* Default generated source per template — matches the real Sources.kt boilerplate */
+const SOURCES = {
+  no_activity: {kt:null, java:null},
+  empty_activity: {
+    kt:`package {{PKG}}
+
+import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
+
+class MainActivity : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+    }
+}`,
+    java:`package {{PKG}};
+
+import android.os.Bundle;
+import androidx.appcompat.app.AppCompatActivity;
+
+public class MainActivity extends AppCompatActivity {
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+    }
+}`
+  },
+  basic_activity: {
+    kt:`package {{PKG}}
+
+import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
+import {{PKG}}.databinding.ActivityMainBinding
+
+class MainActivity : AppCompatActivity() {
+
+    private var _binding: ActivityMainBinding? = null
+    private val binding: ActivityMainBinding
+        get() = checkNotNull(_binding) { "Activity has been destroyed" }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        _binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        binding.textView.text = "Hello, Basic Activity!"
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        _binding = null
+    }
+}`,
+    java:`package {{PKG}};
+
+import android.os.Bundle;
+import androidx.appcompat.app.AppCompatActivity;
+import {{PKG}}.databinding.ActivityMainBinding;
+
+public class MainActivity extends AppCompatActivity {
+
+    private ActivityMainBinding binding;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        binding = ActivityMainBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
+
+        binding.textView.setText("Hello, Basic Activity!");
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        binding = null;
+    }
+}`
+  },
+  compose_empty_activity: {
+    kt:`package {{PKG}}
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.material3.Text
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
+import {{PKG}}.ui.theme.{{PROJ}}Theme
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            {{PROJ}}Theme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    Text(text = "Hello, Compose!")
+                }
+            }
+        }
+    }
+}`,
+    java:null // Compose is Kotlin-only in this build (documented limitation)
+  },
+  bottom_navigation_activity: {
+    kt:`package {{PKG}}
+
+import android.os.Bundle
+import com.google.android.material.bottomnavigation.BottomNavigationView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.navigation.findNavController
+import androidx.navigation.ui.AppBarConfiguration
+import androidx.navigation.ui.setupActionBarWithNavController
+import androidx.navigation.ui.setupWithNavController
+import {{PKG}}.databinding.ActivityMainBinding
+
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var binding: ActivityMainBinding
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        val navView: BottomNavigationView = binding.navView
+        val navController = findNavController(R.id.nav_host_fragment_activity_main)
+        val appBarConfiguration = AppBarConfiguration(
+            setOf(R.id.navigation_home, R.id.navigation_dashboard, R.id.navigation_notifications)
+        )
+        setupActionBarWithNavController(navController, appBarConfiguration)
+        navView.setupWithNavController(navController)
+    }
+}`,
+    java:`package {{PKG}};
+
+import android.os.Bundle;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.navigation.NavController;
+import androidx.navigation.Navigation;
+import androidx.navigation.ui.AppBarConfiguration;
+import androidx.navigation.ui.NavigationUI;
+import {{PKG}}.databinding.ActivityMainBinding;
+
+public class MainActivity extends AppCompatActivity {
+
+    private ActivityMainBinding binding;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        binding = ActivityMainBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
+
+        BottomNavigationView navView = findViewById(R.id.nav_view);
+        AppBarConfiguration appBarConfiguration = new AppBarConfiguration.Builder(
+                R.id.navigation_home, R.id.navigation_dashboard, R.id.navigation_notifications).build();
+        NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_activity_main);
+        NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
+        NavigationUI.setupWithNavController(binding.navView, navController);
+    }
+}`
+  },
+  blank_activity_drawer: {
+    kt:`package {{PKG}}
+
+import android.os.Bundle
+import android.view.Menu
+import com.google.android.material.snackbar.Snackbar
+import com.google.android.material.navigation.NavigationView
+import androidx.navigation.findNavController
+import androidx.navigation.ui.AppBarConfiguration
+import androidx.navigation.ui.navigateUp
+import androidx.navigation.ui.setupActionBarWithNavController
+import androidx.navigation.ui.setupWithNavController
+import androidx.drawerlayout.widget.DrawerLayout
+import androidx.appcompat.app.AppCompatActivity
+import {{PKG}}.databinding.ActivityMainBinding
+
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var appBarConfiguration: AppBarConfiguration
+    private lateinit var binding: ActivityMainBinding
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        setSupportActionBar(binding.appBarMain.toolbar)
+
+        binding.appBarMain.fab.setOnClickListener { view ->
+            Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
+                .setAction("Action", null).setAnchorView(R.id.fab).show()
+        }
+        val drawerLayout: DrawerLayout = binding.drawerLayout
+        val navView: NavigationView = binding.navView
+        val navController = findNavController(R.id.nav_host_fragment_content_main)
+        appBarConfiguration = AppBarConfiguration(
+            setOf(R.id.nav_home, R.id.nav_gallery, R.id.nav_slideshow), drawerLayout
+        )
+        setupActionBarWithNavController(navController, appBarConfiguration)
+        navView.setupWithNavController(navController)
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.main, menu)
+        return true
+    }
+}`,
+    java:`package {{PKG}};
+
+import android.os.Bundle;
+import android.view.Menu;
+import com.google.android.material.snackbar.Snackbar;
+import com.google.android.material.navigation.NavigationView;
+import androidx.navigation.NavController;
+import androidx.navigation.Navigation;
+import androidx.navigation.ui.AppBarConfiguration;
+import androidx.navigation.ui.NavigationUI;
+import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.appcompat.app.AppCompatActivity;
+import {{PKG}}.databinding.ActivityMainBinding;
+
+public class MainActivity extends AppCompatActivity {
+
+    private AppBarConfiguration mAppBarConfiguration;
+    private ActivityMainBinding binding;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        binding = ActivityMainBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
+        setSupportActionBar(binding.appBarMain.toolbar);
+
+        DrawerLayout drawer = binding.drawerLayout;
+        NavigationView navigationView = binding.navView;
+        mAppBarConfiguration = new AppBarConfiguration.Builder(
+                R.id.nav_home, R.id.nav_gallery, R.id.nav_slideshow)
+                .setOpenableLayout(drawer).build();
+        NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
+        NavigationUI.setupActionBarWithNavController(this, navController, mAppBarConfiguration);
+        NavigationUI.setupWithNavController(navigationView, navController);
+    }
+}`
+  },
+  cpp_activity: {
+    kt:`package {{PKG}}
+
+import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
+import {{PKG}}.databinding.ActivityMainBinding
+
+class MainActivity : AppCompatActivity() {
+
+    private var _binding: ActivityMainBinding? = null
+    private val binding: ActivityMainBinding
+        get() = checkNotNull(_binding) { "Activity has been destroyed" }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        _binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        binding.textView.text = stringFromJNI()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        _binding = null
+    }
+
+    external fun stringFromJNI(): String
+
+    companion object {
+        init { System.loadLibrary("myapplication") }
+    }
+}`,
+    java:`package {{PKG}};
+
+import android.os.Bundle;
+import androidx.appcompat.app.AppCompatActivity;
+import {{PKG}}.databinding.ActivityMainBinding;
+
+public class MainActivity extends AppCompatActivity {
+    private ActivityMainBinding binding;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        binding = ActivityMainBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
+        binding.textView.setText(stringFromJNI());
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        binding = null;
+    }
+
+    public native String stringFromJNI();
+
+    static {
+        System.loadLibrary("myapplication");
+    }
+}`
+  }
+};
+
+const NATIVE_LIB_CPP = `#include <jni.h>
+#include <string>
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_{{JNIPKG}}_MainActivity_stringFromJNI(
+        JNIEnv* env,
+        jobject /* this */) {
+    std::string hello = "Hello from C++";
+    return env->NewStringUTF(hello.c_str());
+}`;
+
+const MANIFEST_TPL = `<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.{{PROJ}}">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>`;
+
+/* ============================================================
+   STATE
+   ============================================================ */
+let state = {
+  template: null,
+  projectName: 'MyApplication',
+  pkg: 'com.example.myapplication',
+  lang: 'Kotlin',
+  useKts: true,
+  openFiles: [],
+  activeFile: null,
+  modifications: []
+};
+
+/* ============================================================
+   UTIL
+   ============================================================ */
+function $(sel){ return document.querySelector(sel); }
+function $all(sel){ return document.querySelectorAll(sel); }
+function showScreen(id){
+  $all('.screen').forEach(s=>s.classList.remove('active'));
+  $('#'+id).classList.add('active');
+}
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('on');
+  clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('on'), 2200);
+}
+function slug(s){ return s.toLowerCase().replace(/[^a-z0-9]+/g,''); }
+
+/* ---- simple syntax highlighter (Kotlin/Java/C++/XML good enough for demo) ---- */
+function highlight(code, lang){
+  const KEYWORDS = /\b(package|import|class|fun|val|fun|override|private|public|protected|return|if|else|companion|object|init|external|static|void|extends|implements|new|final|const|var)\b/g;
+  let esc = code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  esc = esc.replace(/(&quot;.*?&quot;|"(?:[^"\\]|\\.)*")/g, m=>`<span class="tok-str">${m}</span>`);
+  esc = esc.replace(/(\/\/.*$)/gm, m=>`<span class="tok-cmt">${m}</span>`);
+  esc = esc.replace(/@\w+/g, m=>`<span class="tok-ann">${m}</span>`);
+  esc = esc.replace(KEYWORDS, m=>`<span class="tok-kw">${m}</span>`);
+  esc = esc.replace(/\b([A-Z][A-Za-z0-9_]*)\b(?!<\/span>)/g, m=>`<span class="tok-cls">${m}</span>`);
+  esc = esc.replace(/\b(\w+)(?=\()/g, m=>`<span class="tok-fn">${m}</span>`);
+  return esc;
+}
+function renderCode(code, lang){
+  const wrap = document.createElement('div');
+  if(code == null){
+    wrap.innerHTML = `<div style="padding:40px 20px;text-align:center;color:var(--on-surface-var);font-size:13px">
+      No starter file — this template creates an empty project skeleton.<br><br>Use the AI Agent or File Tree to add your first file.</div>`;
+    return wrap;
+  }
+  const lines = code.split('\n');
+  lines.forEach((ln,i)=>{
+    const row = document.createElement('div'); row.className='codeline';
+    row.innerHTML = `<span class="ln">${i+1}</span><span class="code">${highlight(ln,lang) || ' '}</span>`;
+    wrap.appendChild(row);
+  });
+  return wrap;
+}
+
+/* ============================================================
+   SCREEN 1 — GALLERY
+   ============================================================ */
+function buildGallery(){
+  const list = $('#gallery-list');
+  list.innerHTML = '';
+  TEMPLATES.forEach(t=>{
+    const card = document.createElement('div');
+    card.className = 'tpl-card';
+    const imgOk = t.img && !t.img.startsWith('{{');
+    card.innerHTML = imgOk
+      ? `<img src="${t.img}" alt="${t.name}"/>`
+      : `<div class="noimg">${t.kind==='native'?'⚙️':t.kind==='compose'?'🎨':'📱'}</div>`;
+    const nameEl = document.createElement('div');
+    nameEl.className='name'; nameEl.textContent = t.name;
+    card.appendChild(nameEl);
+    card.onclick = ()=> openConfigure(t);
+    list.appendChild(card);
+  });
+}
+$('#gallery-exit').onclick = ()=> toast('Returned to Home');
+
+/* ============================================================
+   SCREEN 2 — CONFIGURE
+   ============================================================ */
+function openConfigure(t){
+  state.template = t;
+  $('#cfg-title').textContent = t.name;
+  $('#native-fields').style.display = t.kind === 'native' ? 'block' : 'none';
+
+  // Compose = Kotlin-only real limitation
+  const langButtons = $all('#f-lang button');
+  if(t.kind === 'compose'){
+    langButtons.forEach(b=>{ b.classList.toggle('on', b.dataset.v==='Kotlin'); b.disabled = b.dataset.v!=='Kotlin'; b.style.opacity = b.dataset.v!=='Kotlin' ? .35 : 1; });
+    state.lang = 'Kotlin';
+    $('#lang-help').style.display = 'block';
+  } else {
+    langButtons.forEach(b=>{ b.disabled=false; b.style.opacity=1; });
+    $('#lang-help').style.display = 'none';
+  }
+  showScreen('screen-configure');
+}
+$('#cfg-back').onclick = ()=> showScreen('screen-gallery');
+$('#cfg-prev').onclick = ()=> showScreen('screen-gallery');
+
+$('#f-name').addEventListener('input', e=>{
+  state.projectName = e.target.value || 'MyApplication';
+  const derived = 'com.example.' + slug(state.projectName || 'app');
+  $('#f-pkg').value = derived;
+  validatePkg();
+});
+$('#f-pkg').addEventListener('input', validatePkg);
+function validatePkg(){
+  const v = $('#f-pkg').value;
+  const ok = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/.test(v);
+  $('#pkg-help').textContent = ok ? '✓ Valid package name' : '✕ Must be a valid Java package name (e.g. com.example.app)';
+  $('#pkg-help').className = 'help' + (ok?'':' err');
+  state.pkg = v;
+  $('#cfg-finish').disabled = !ok || !state.projectName.trim();
+}
+$all('#f-lang button').forEach(b=> b.onclick = ()=>{ if(b.disabled) return; $all('#f-lang button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); state.lang=b.dataset.v; });
+$all('#f-natlang button').forEach(b=> b.onclick = ()=>{ $all('#f-natlang button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); });
+$all('#f-buildsys button').forEach(b=> b.onclick = ()=>{ $all('#f-buildsys button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); });
+$('#f-kts').onclick = ()=>{ $('#f-kts').classList.toggle('on'); state.useKts = $('#f-kts').classList.contains('on');
+  $('#kts-label').textContent = state.useKts ? 'Kotlin DSL (.gradle.kts)' : 'Groovy (.gradle)'; };
+$('#lastloc-chip').onclick = ()=> toast('Using last saved location');
+
+$('#cfg-finish').onclick = ()=>{
+  const btn = $('#cfg-finish');
+  btn.disabled = true; $('#cfg-prev').disabled = true;
+  $('#cfg-progress').classList.add('on');
+  btn.textContent = 'Creating…';
+  setTimeout(()=>{
+    $('#cfg-progress').classList.remove('on');
+    btn.textContent = 'Create Project';
+    btn.disabled = false; $('#cfg-prev').disabled = false;
+    toast('Project created successfully');
+    launchEditor();
+  }, 1100);
+};
+
+/* ============================================================
+   SCREEN 3 — EDITOR
+   ============================================================ */
+function launchEditor(){
+  const t = state.template;
+  $('#proj-name').textContent = state.projectName;
+  $('#proj-sub').textContent = 'app · MainActivity.' + (state.lang==='Kotlin'?'kt':'java');
+  $('#drawer-sub').textContent = '/AndroidCodeStudioProjects/' + state.projectName;
+  $('#lang-mode').textContent = state.lang;
+
+  buildFileTree();
+  openFile(mainActivityFileName(), true);
+  showScreen('screen-editor');
+}
+
+function mainActivityFileName(){
+  return 'MainActivity.' + (state.lang==='Kotlin' ? 'kt' : 'java');
+}
+function generatedSource(){
+  const t = state.template;
+  const src = SOURCES[t.id];
+  if(!src) return null;
+  const code = state.lang==='Kotlin' ? src.kt : src.java;
+  if(code==null) return null;
+  return code.replaceAll('{{PKG}}', state.pkg).replaceAll('{{PROJ}}', state.projectName.replace(/[^A-Za-z0-9]/g,''));
+}
+
+const FILES = {}; // name -> {content, lang}
+function buildFileTree(){
+  FILES['AndroidManifest.xml'] = {content: MANIFEST_TPL.replaceAll('{{PROJ}}', state.projectName.replace(/[^A-Za-z0-9]/g,'')), lang:'xml'};
+  FILES['build.gradle.kts'] = {content:
+`plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+}
+
+android {
+    namespace = "${state.pkg}"
+    compileSdk = 34
+
+    defaultConfig {
+        applicationId = "${state.pkg}"
+        minSdk = ${$('#f-sdk').value}
+        targetSdk = 34
+        versionCode = 1
+        versionName = "1.0"
+    }
+}`, lang:'kotlin'};
+  const mainFile = mainActivityFileName();
+  const src = generatedSource();
+  FILES[mainFile] = {content: src, lang: state.lang==='Kotlin'?'kotlin':'java'};
+
+  if(state.template.kind === 'native'){
+    const jniPkg = state.pkg.replaceAll('.', '_');
+    FILES['native-lib.cpp'] = {content: NATIVE_LIB_CPP.replaceAll('{{JNIPKG}}', jniPkg), lang:'cpp'};
+  }
+
+  // render tree
+  const root = $('#tree-root');
+  root.innerHTML = '';
+  const dirs = [
+    {name:'manifests', files:['AndroidManifest.xml']},
+    {name:'java/'+state.pkg.split('.').join('/'), files:[mainFile]},
+  ];
+  if(state.template.kind==='native') dirs.push({name:'cpp', files:['native-lib.cpp']});
+  dirs.push({name:'Gradle Scripts', files:['build.gradle.kts']});
+
+  dirs.forEach(d=>{
+    const dirRow = document.createElement('div');
+    dirRow.className = 'tree-row dir expanded';
+    dirRow.innerHTML = `<span class="chev">▶</span><span class="ic">📁</span><span>${d.name}</span>`;
+    root.appendChild(dirRow);
+    const kids = document.createElement('div');
+    kids.style.paddingLeft = '20px';
+    d.files.forEach(fn=>{
+      const row = document.createElement('div');
+      row.className = 'tree-row file' + (fn===mainFile?' active':'');
+      row.dataset.file = fn;
+      row.innerHTML = `<span class="chev"></span><span class="ic">${iconFor(fn)}</span><span>${fn}</span>`;
+      row.onclick = ()=> openFile(fn);
+      kids.appendChild(row);
+    });
+    root.appendChild(kids);
+    dirRow.onclick = ()=>{ dirRow.classList.toggle('expanded'); kids.style.display = dirRow.classList.contains('expanded')?'block':'none'; };
+  });
+}
+function iconFor(fn){
+  if(fn.endsWith('.kt')) return '🟣';
+  if(fn.endsWith('.java')) return '☕';
+  if(fn.endsWith('.xml')) return '📄';
+  if(fn.endsWith('.cpp')) return '🔧';
+  if(fn.includes('gradle')) return '🐘';
+  return '📄';
+}
+
+function openFile(fn, replace){
+  if(!FILES[fn]) return;
+  if(!state.openFiles.includes(fn)) state.openFiles.push(fn);
+  state.activeFile = fn;
+  renderTabs();
+  renderCanvas();
+  $all('.tree-row.file').forEach(r=> r.classList.toggle('active', r.dataset.file===fn));
+}
+function closeFile(fn, e){
+  e.stopPropagation();
+  state.openFiles = state.openFiles.filter(f=>f!==fn);
+  if(state.activeFile===fn) state.activeFile = state.openFiles[0] || null;
+  renderTabs(); renderCanvas();
+}
+function renderTabs(){
+  const strip = $('#tabs-strip');
+  strip.innerHTML = '';
+  state.openFiles.forEach(fn=>{
+    const tab = document.createElement('div');
+    tab.className = 'filetab' + (fn===state.activeFile?' on':'');
+    tab.innerHTML = `<span>${iconFor(fn)}</span><span>${fn}</span><span class="x">×</span>`;
+    tab.onclick = ()=> openFile(fn);
+    tab.querySelector('.x').onclick = (e)=> closeFile(fn,e);
+    strip.appendChild(tab);
+  });
+}
+function renderCanvas(){
+  const canvas = $('#code-canvas');
+  canvas.innerHTML = '';
+  if(!state.activeFile){
+    canvas.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:6px;color:var(--on-surface-var)">
+      <div style="font-size:15px;color:var(--on-surface)">Android Code Studio</div>
+      <div style="font-size:11px">Open right drawer for files</div></div>`;
+    $('#proj-sub').textContent = 'No file open';
+    return;
+  }
+  const f = FILES[state.activeFile];
+  canvas.appendChild(renderCode(f.content, f.lang));
+  $('#proj-sub').textContent = 'app · ' + state.activeFile;
+}
+
+/* drawer */
+$('#open-drawer').onclick = ()=>{ $('#drawer').classList.add('on'); $('#scrim').classList.add('on'); };
+$('#scrim').onclick = ()=>{ $('#drawer').classList.remove('on'); $('#scrim').classList.remove('on'); };
+$all('#drawer-nav button').forEach(b=> b.onclick = ()=>{
+  $all('#drawer-nav button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+  if(b.dataset.d === 'ai'){ $('#drawer').classList.remove('on'); $('#scrim').classList.remove('on'); openAI(); }
+  else if(b.dataset.d !== 'tree'){ toast(b.querySelector('span').textContent + ' (not part of this prototype)'); }
+});
+
+/* run + build sheet */
+$('#run-btn').onclick = ()=>{
+  $('#build-status-text').textContent = 'Configure project :app…';
+  $('#bottom-sheet').classList.remove('collapsed'); // keep collapsed height but pulse text
+  let steps = ['Configure project :app…','Task :app:compileDebugKotlin','Task :app:mergeDebugResources','Task :app:packageDebug','BUILD SUCCESSFUL in 3s'];
+  let i=0;
+  const iv = setInterval(()=>{
+    $('#build-status-text').textContent = steps[i];
+    i++;
+    if(i>=steps.length){ clearInterval(iv); toast('Installed on Pixel 8 (emulator)'); }
+  }, 450);
+};
+$('#sheet-header').onclick = ()=>{
+  const s = $('#bottom-sheet');
+  s.classList.toggle('expanded'); s.classList.toggle('collapsed');
+  renderSheetTab('build');
+};
+$all('#sheet-tabs button').forEach(b=> b.onclick = ()=>{
+  $all('#sheet-tabs button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+  renderSheetTab(b.dataset.t);
+});
+function renderSheetTab(tab){
+  const c = $('#sheet-content');
+  if(tab==='build'){
+    c.innerHTML = `> Task :app:preBuild UP-TO-DATE
+> Task :app:compileDebugKotlin
+> Task :app:mergeDebugResources
+> Task :app:packageDebug
+<span class="ok">BUILD SUCCESSFUL in 3s</span>
+34 actionable tasks: 34 executed`;
+  } else if(tab==='logcat'){
+    c.innerHTML = `<span class="ok">I/MainActivity: onCreate()</span>
+D/ViewRootImpl: message dispatched
+<span class="err">E/GLES: Failed to choose config</span> (harmless)
+I/Choreographer: Skipped 2 frames!`;
+  } else {
+    c.innerHTML = `~/${state.projectName} $ ./gradlew assembleDebug
+<span class="ok">✓ done in 3.2s</span>
+~/${state.projectName} $ _`;
+  }
+}
+renderSheetTab('build');
+
+/* ============================================================
+   AI AGENT
+   ============================================================ */
+let aiHistory = [];
+function openAI(){ $('#ai-panel').classList.add('on'); }
+$('#ai-close').onclick = ()=> $('#ai-panel').classList.remove('on');
+$all('#ai-tabs button').forEach(b=> b.onclick = ()=> switchAIPage(b.dataset.p));
+$('#ai-rail-toggle').onclick = ()=>{ $('#ai-rail').classList.add('on'); $('#ai-rail-scrim').classList.add('on'); };
+$('#ai-rail-scrim').onclick = ()=>{ $('#ai-rail').classList.remove('on'); $('#ai-rail-scrim').classList.remove('on'); };
+$all('.rail-item').forEach(r=> r.onclick = ()=>{
+  $all('.rail-item').forEach(x=>x.classList.remove('on')); r.classList.add('on');
+  $('#ai-rail').classList.remove('on'); $('#ai-rail-scrim').classList.remove('on');
+  switchAIPage(r.dataset.r === 'chat' ? 'chat' : 'settings');
+});
+function switchAIPage(name){
+  $all('#ai-tabs button').forEach(b=> b.classList.toggle('on', b.dataset.p===name));
+  $all('.ai-page').forEach(p=>p.classList.remove('on'));
+  const map = {chat:'page-chat', history:'page-history', settings:'page-settings'};
+  $('#'+map[name]).classList.add('on');
+  if(name==='history') renderHistory();
+}
+$('#ai-clear').onclick = ()=>{ $('#ai-prompt').value=''; };
+$('#provider-chip').onclick = ()=> switchAIPage('settings');
+
+$('#ai-send').onclick = ()=>{
+  const prompt = $('#ai-prompt').value.trim();
+  if(!prompt) return;
+  $('#ai-send').disabled = true;
+  $('#ai-spinner').style.display='inline-block';
+  $('#mod-list').style.display='none'; $('#mod-list').innerHTML='';
+  $('#summary-card').style.display='none';
+  $('#undo-fab').style.display='none';
+
+  const steps = [
+    'Capturing current file states…',
+    'Sending request to OpenAI · gpt-5.1…',
+    'Generating code…',
+    'Writing ' + mainActivityFileName() + '…',
+    'Applying changes…'
+  ];
+  let i=0;
+  const iv = setInterval(()=>{
+    $('#status-text').textContent = steps[i];
+    i++;
+    if(i>=steps.length){
+      clearInterval(iv);
+      finishAIRequest(prompt);
+    }
+  }, 550);
+};
+
+function finishAIRequest(prompt){
+  $('#ai-spinner').style.display='none';
+  $('#ai-send').disabled = false;
+  $('#status-text').textContent = 'Done — see summary below';
+  const modList = $('#mod-list');
+  modList.style.display='block';
+  modList.innerHTML = `<div class="mod-row"><span class="badge modified">M</span><span style="flex:1">${mainActivityFileName()}</span></div>`;
+  $('#summary-card').style.display='block';
+  $('#summary-text').textContent = '1 file modified, 0 created, 0 deleted.';
+  $('#undo-fab').style.display='flex';
+
+  aiHistory.unshift({title: prompt.slice(0,48), time:'just now', provider:'OpenAI · gpt-5.1'});
+  toast('AI Agent finished');
+  $('#ai-prompt').value = '';
+}
+$('#undo-fab').onclick = ()=>{
+  $('#undo-fab').style.display='none';
+  $('#summary-card').style.display='none';
+  $('#mod-list').style.display='none';
+  $('#status-text').textContent = 'Last change undone';
+  toast('Reverted last modification');
+};
+
+function renderHistory(){
+  const list = $('#history-list');
+  if(aiHistory.length===0){
+    list.innerHTML = `<div class="empty-block"><div class="em">💬</div><div>No conversations yet</div>
+      <button class="btn tonal" onclick="switchAIPage('chat')">Start chatting</button></div>`;
+    return;
+  }
+  list.innerHTML = '';
+  aiHistory.forEach(h=>{
+    const row = document.createElement('div');
+    row.className='hist-row';
+    row.innerHTML = `<div class="t">${h.title || '(empty prompt)'}</div><div class="m"><span>${h.provider}</span><span>${h.time}</span></div>`;
+    row.onclick = ()=> switchAIPage('chat');
+    list.appendChild(row);
+  });
+}
+
+/* boot */
+buildGallery();
+</script>
+</body>
+</html>
